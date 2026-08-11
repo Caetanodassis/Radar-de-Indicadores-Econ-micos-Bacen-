@@ -3,34 +3,42 @@ import json
 import os
 from datetime import datetime
 
-codigo_serie = 432
-pasta_destino = "Radar-de-Indicadores-Econ-micos-Bacen-/bronze/selic"
-os.makedirs(pasta_destino, exist_ok=True)
+# Dicionário com os nomes e códigos das séries que queremos
+indicadores = {
+    "selic": 432,
+    "ipca": 433,
+    "dolar": 1
+}
 
-# Para séries diárias, o Bacen exige dataInicial e aceita até 10 anos de janela.
 hoje = datetime.now()
 data_final = hoje.strftime("%d/%m/%Y")
 data_inicial = hoje.replace(year=hoje.year - 10).strftime("%d/%m/%Y")
-url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo_serie}/dados"
-params = {
-    "formato": "json",
-    "dataInicial": data_inicial,
-    "dataFinal": data_final,
-}
 
-print("conectando a API do Banco Central do Brasil...")
-resposta = requests.get(url, params=params)
+data_hoje_arquivo = hoje.strftime("%Y-%m-%d")
 
-if resposta.status_code == 200:
-    dados_json = resposta.json()
+# O laço 'for' vai rodar uma vez para cada indicador
+for nome, codigo in indicadores.items():
     
-    data_hoje = datetime.now().strftime("%Y-%m-%d")
-    caminho_arquivo = f"{pasta_destino}/{data_hoje}.json"
+    pasta_destino = f"bronze/{nome}"
+    os.makedirs(pasta_destino, exist_ok=True)
     
-    with open(caminho_arquivo, "w", encoding="utf-8") as arquivo:
-        json.dump(dados_json, arquivo, ensure_ascii=False, indent=4)
+    url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados"
+    params = {
+        "formato": "json",
+        "dataInicial": data_inicial,
+        "dataFinal": data_final,
+    }
+
+    print(f"Baixando dados: {nome.upper()} (Código: {codigo})...")
+    resposta = requests.get(url, params=params)
+
+    if resposta.status_code == 200:
+        dados_json = resposta.json()
+        caminho_arquivo = f"{pasta_destino}/{data_hoje_arquivo}.json"
         
-    print(f"Sucesso! Dados Selic Salvos em: {caminho_arquivo}")
-    
-else:
-    print(f"Falha ao conectar à API. Código de status: {resposta.status_code}") 
+        with open(caminho_arquivo, "w", encoding="utf-8") as arquivo:
+            json.dump(dados_json, arquivo, ensure_ascii=False, indent=4)
+            
+        print(f"Sucesso! Salvo em: {caminho_arquivo}\n")
+    else:
+        print(f"Falha ao conectar à API para {nome}. Código: {resposta.status_code}\n")
